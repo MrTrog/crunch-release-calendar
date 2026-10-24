@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calendário de Lançamentos</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23f47521'/%3E%3Crect x='7' y='9' width='18' height='16' rx='3' fill='none' stroke='%23fff' stroke-width='2.2'/%3E%3Cpath d='M7 14h18M12 6.5v4M20 6.5v4' stroke='%23fff' stroke-width='2.2' stroke-linecap='round'/%3E%3Cpath d='M14.5 16.6v5.6l4.8-2.8z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+  /* contrastes conferidos: textos ≥ 4,5:1 sobre --surface e --bg nos dois temas */
+  :root {
+    --bg: #0f0f12;
+    --surface: #18181d;
+    --surface-2: #212128;
+    --line: #2c2c35;
+    --text: #ececf1;
+    --muted: #9a9aa8;
+    --faint: #8a8a95;
+    --accent: #f47521;
+    --accent-text: #f47521; /* laranja usado como cor de texto */
+    --accent-soft: rgba(244, 117, 33, .14);
+    --good: #3ecf8e;
+    --star: #ffc94d;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f3f3f5;
+      --surface: #ffffff;
+      --surface-2: #f6f6f8;
+      --line: #e3e3e8;
+      --text: #1d1d22;
+      --muted: #62626e;
+      --faint: #6b6b76;
+      --accent-text: #b84c09;
+      --accent-soft: rgba(244, 117, 33, .12);
+      --good: #0e7a4a;
+      --star: #e0a100;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f3f3f5; --surface: #ffffff; --surface-2: #f6f6f8; --line: #e3e3e8;
+    --text: #1d1d22; --muted: #62626e; --faint: #6b6b76; --accent-text: #b84c09;
+    --accent-soft: rgba(244, 117, 33, .12); --good: #0e7a4a; --star: #e0a100;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input { font: inherit; color: inherit; }
+  a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px;
+  }
+
+  /* ---------- Topo ---------- */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar {
+    max-width: 1600px; margin: 0 auto;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+    padding: 12px 16px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+  .brand svg { width: 32px; height: 32px; display: block; flex: none; }
+  .brand h1 { font-size: 18px; line-height: 1; margin: 0; font-weight: 800; letter-spacing: -.015em; }
+
+  .weeknav { display: flex; align-items: center; gap: 6px; }
+  .weeknav .range { min-width: 150px; text-align: center; font-weight: 600; }
+  .btn {
+    border: 1px solid var(--line); background: var(--surface);
+    border-radius: 8px; padding: 6px 10px; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:disabled { opacity: .35; cursor: default; border-color: var(--line); }
+  .btn.icon { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; }
+  .btn svg { width: 16px; height: 16px; }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .chip {
+    border: 1px solid var(--line); background: var(--surface);
+    border-radius: 999px; padding: 5px 12px; cursor: pointer; user-select: none;
+    color: var(--muted); font-weight: 500; font-size: 13px;
+    transition: all .15s;
+  }
+  .chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
+  .search {
+    border: 1px solid var(--line); background: var(--surface);
+    border-radius: 999px; padding: 5px 12px; width: 180px; outline: none;
+  }
+  .search:focus { border-color: var(--accent); }
+
+  /* ---------- Grade ---------- */
+  main { max-width: 1600px; margin: 0 auto; padding: 16px; }
+  .status { color: var(--muted); padding: 40px 0; text-align: center; }
+  .status.err { color: #ff6b6b; }
+
+  .week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+  .day {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    min-width: 0;
+  }
+  .day.today { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .day-head {
+    padding: 12px 12px 10px;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
+  }
+  .day-head .wd { font-weight: 800; text-transform: uppercase; letter-spacing: .04em; font-size: 13px; }
+  .day.today .wd { color: var(--accent-text); }
+  .day-head .dt { color: var(--muted); font-size: 12px; }
+  .day-head .count { color: var(--faint); font-size: 11px; display: block; margin-top: 2px; }
+  .list { padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+  .empty { color: var(--faint); font-size: 12px; padding: 14px 8px; text-align: center; text-wrap: balance; }
+
+  .ep {
+    display: grid; grid-template-columns: 44px 1fr; gap: 10px;
+    padding: 8px 6px; border-radius: 8px;
+    text-decoration: none; color: inherit;
+    position: relative;
+    transition: background .12s;
+  }
+  .ep:hover { background: var(--surface-2); }
+  .ep a { color: inherit; text-decoration: none; }
+  .ep .series { display: block; min-width: 0; }
+  .ep img, .ep .ph {
+    width: 44px; height: 62px; object-fit: cover; border-radius: 5px;
+    background: var(--surface-2); display: block;
+  }
+  .ep .info { min-width: 0; }
+  .ep .time { font-size: 11px; color: var(--muted); font-weight: 600; display: flex; gap: 6px; align-items: center; }
+  .ep .title {
+    font-weight: 600; font-size: 13px; line-height: 1.25; margin: 2px 0 3px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .ep .meta { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+  .tag {
+    font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+    padding: 1px 6px; border-radius: 4px; background: var(--surface-2); color: var(--muted);
+  }
+  .tag.new { background: var(--accent); color: #1a1a1a; }
+  .tag.final { background: var(--text); color: var(--surface); }
+  .tag.out { background: transparent; color: var(--good); padding: 0; }
+  /* episódio futuro: só a capa fica apagada, o texto continua legível */
+  .ep.upcoming img { opacity: .45; }
+  .ep.upcoming .title { color: var(--muted); }
+  .ep.mine .title::before { content: "★ "; color: var(--star); }
+
+  .star, .more {
+    position: absolute; right: 4px;
+    border: 0; background: none; cursor: pointer; padding: 2px 4px;
+    color: var(--faint); font-size: 14px; line-height: 1; opacity: 0;
+    transition: opacity .12s, color .12s;
+  }
+  .star { top: 6px; }
+  .more { top: 30px; display: none; font-size: 15px; }
+  .ep:hover .star, .star.on, .star:focus-visible { opacity: 1; }
+  .star.on { color: var(--star); }
+  .star:hover { color: var(--star); }
+  /* toque: sem "passar o mouse", então estrela e botão de detalhes ficam sempre visíveis */
+  @media (hover: none) {
+    .star { opacity: 1; }
+    .more { display: block; opacity: 1; }
+    .ep .info { padding-right: 22px; }
+  }
+
+  .now-line {
+    display: flex; align-items: center; gap: 6px; margin: 4px 2px;
+    color: var(--accent-text); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  }
+  .now-line::before, .now-line::after { content: ""; height: 2px; background: var(--accent); flex: 1; border-radius: 2px; }
+
+  .compact .ep { grid-template-columns: 1fr; }
+  .compact .ep img, .compact .ep .ph { display: none; }
+
+  /* ---------- Popover de detalhes ---------- */
+  .pop {
+    position: fixed; z-index: 50; width: 300px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .45);
+    overflow: hidden; pointer-events: none;
+    opacity: 0; transform: translateY(4px); transition: opacity .14s, transform .14s;
+  }
+  .pop.show { opacity: 1; transform: none; pointer-events: auto; }
+  .pop a { color: inherit; text-decoration: none; }
+  .pop .shot { position: relative; aspect-ratio: 16 / 9; background: var(--surface-2); display: block; overflow: hidden; }
+  .pop .shot img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .25s; }
+  .pop a.shot:hover img { transform: scale(1.04); }
+  .pop a.shot.play::after {
+    content: "▶"; position: absolute; inset: 0; margin: auto; width: 46px; height: 46px; border-radius: 50%;
+    background: rgba(0, 0, 0, .6); color: #fff; display: grid; place-items: center; font-size: 16px;
+    opacity: 0; transition: opacity .15s;
+  }
+  .pop a.shot.play:hover::after { opacity: 1; }
+  .pop h3 a:hover, .ep .series:hover .title { color: var(--accent-text); }
+  .pop .shot .lbl {
+    position: absolute; left: 8px; bottom: 8px;
+    background: rgba(0, 0, 0, .72); color: #fff; font-size: 11px; font-weight: 700;
+    padding: 2px 7px; border-radius: 4px;
+  }
+  .pop .body { padding: 12px 14px 14px; }
+  .pop h3 { margin: 0 0 4px; font-size: 15px; line-height: 1.25; }
+  .pop .eptitle { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+  .pop .rating { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 6px; }
+  .pop .rating b { font-weight: 700; }
+  .pop .rating .s { color: var(--star); }
+  .pop .rating .n { color: var(--muted); }
+  .pop .facts { color: var(--muted); font-size: 12px; font-weight: 600; line-height: 1.5; margin-bottom: 8px; }
+  .pop .genres { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .pop .syn {
+    font-size: 12.5px; line-height: 1.45; color: var(--text); margin: 0;
+    display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .pop .loading, .pop .syn.pending { color: var(--faint); font-size: 12px; }
+  .pop .close { display: none; }
+  /* toque: o popover vira uma folha presa embaixo da tela, aberta pelo botão "i" */
+  @media (hover: none) {
+    .pop { left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto; max-width: 480px; margin: 0 auto; max-height: 80vh; overflow-y: auto; }
+    .pop .close {
+      display: grid; place-items: center; position: absolute; top: 8px; right: 8px; z-index: 1;
+      width: 32px; height: 32px; border-radius: 50%; border: 0; cursor: pointer;
+      background: rgba(0, 0, 0, .65); color: #fff; font-size: 16px;
+    }
+    .pop .syn { -webkit-line-clamp: 10; }
+  }
+
+  footer { max-width: 1600px; margin: 0 auto; padding: 8px 16px 32px; color: var(--faint); font-size: 12px; }
+  footer a { color: var(--muted); }
+
+  @media (max-width: 1250px) {
+    .week { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+  @media (max-width: 860px) {
+    .week { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .search { width: 100%; }
+    .filters { width: 100%; }
+  }
+  @media (max-width: 540px) {
+    .week { grid-template-columns: 1fr; }
+    .weeknav { width: 100%; justify-content: space-between; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="8" fill="#f47521"/>
+        <rect x="7" y="9" width="18" height="16" rx="3" fill="none" stroke="#fff" stroke-width="2.2"/>
+        <path d="M7 14h18M12 6.5v4M20 6.5v4" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M14.5 16.6v5.6l4.8-2.8z" fill="#fff"/>
+      </svg>
+      <h1>Lançamentos da semana</h1>
+    </div>
+    <div class="weeknav">
+      <button class="btn icon" id="prev" title="Semana anterior" aria-label="Semana anterior">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <span class="range" id="range"></span>
+      <button class="btn icon" id="next" title="Próxima semana" aria-label="Próxima semana">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      <button class="btn" id="today">Hoje</button>
+      <button class="btn icon" id="reload" title="Atualizar" aria-label="Atualizar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="bar" style="padding-top:0">
+    <div class="filters">
+      <button class="chip" data-opt="crOnly" title="Só animes com link para a Crunchyroll">Crunchyroll</button>
+      <button class="chip" data-opt="mineOnly" title="Só os animes marcados com ★">★ Minha lista</button>
+      <button class="chip" data-opt="hideUpcoming" title="Esconde episódios que ainda não saíram">✓ Disponível</button>
+      <button class="chip" data-opt="english" title="Mostrar títulos em inglês">Títulos em inglês</button>
+      <button class="chip" data-opt="compact" title="Esconder capas">Compacto</button>
+      <input class="search" id="q" type="search" placeholder="Buscar anime…" autocomplete="off">
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="grid"></div>
+</main>
+<div class="pop" id="pop" role="tooltip"></div>
+
+<footer>
+  Dados de <a href="https://anilist.co" target="_blank" rel="noopener">AniList</a>. O horário é o da exibição no Japão convertido para o seu fuso;
+  na Crunchyroll o episódio costuma aparecer junto ou até ~1h depois. Clique num anime para abrir na Crunchyroll.
+</footer>
+
+<script>
+const API = "https://graphql.anilist.co";
+const QUERY = `
+query ($start: Int, $end: Int, $page: Int) {
+  Page(page: $page, perPage: 50) {
+    pageInfo { hasNextPage }
+    airingSchedules(airingAt_greater: $start, airingAt_lesser: $end, sort: TIME) {
+      airingAt
+      episode
+      media {
+        id idMal isAdult episodes format
+        title { romaji english }
+        coverImage { medium extraLarge }
+        siteUrl
+        externalLinks { site url type }
+        description(asHtml: false)
+        averageScore popularity season seasonYear
+        genres
+        bannerImage
+        studios(isMain: true) { nodes { name } }
+      }
+    }
+  }
+}`;
+
+const DAY_MS = 86400000;
+const CACHE_TTL = 30 * 60 * 1000;
+const WD = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+// ---------- estado ----------
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const opts = Object.assign({ crOnly: true, mineOnly: false, hideUpcoming: false, english: false, compact: false }, store.get("cal.opts", {}));
+const mine = new Set(store.get("cal.mine", []));
+let weekStart = startOfWeek(new Date());
+let current = []; // agendamentos da semana exibida
+const mediaInfo = {}; // id -> detalhes do anime vindos junto com a grade
+// limpa o cache do formato antigo, que não guardava os detalhes
+try { Object.keys(localStorage).filter(k => k.startsWith("cal.week.")).forEach(k => localStorage.removeItem(k)); } catch {}
+let loadToken = 0;
+let goToToday = true; // rola até hoje na abertura e ao clicar em "Hoje"
+
+function startOfWeek(d) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const wd = (x.getDay() + 6) % 7; // segunda = 0
+  x.setDate(x.getDate() - wd);
+  return x;
+}
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+const fmtDate = d => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+const fmtTime = d => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+// ---------- dados ----------
+async function gql(variables, attempt = 0) {
+  let res;
+  try {
+    res = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ query: QUERY, variables }),
+    });
+  } catch (e) {
+    // o 429 do AniList vem sem cabeçalho CORS, então o navegador só mostra "Failed to fetch"
+    if (attempt >= 3) throw new Error("o AniList não respondeu (talvez limite de requisições, tente em alguns minutos)");
+    // o bloqueio do AniList dura cerca de 1 minuto: espera 30s, 60s e 90s
+    setStatus(`AniList ocupado, tentando de novo em ${30 * (attempt + 1)}s…`);
+    await new Promise(r => setTimeout(r, 30000 * (attempt + 1)));
+    return gql(variables, attempt + 1);
+  }
+  if (res.status === 429 && attempt < 3) {
+    const wait = (Number(res.headers.get("Retry-After")) || 5) * 1000;
+    await new Promise(r => setTimeout(r, wait));
+    return gql(variables, attempt + 1);
+  }
+  if (!res.ok) throw new Error(`AniList respondeu ${res.status}`);
+  const json = await res.json();
+  if (json.errors) throw new Error(json.errors[0].message);
+  return json.data.Page;
+}
+
+async function fetchWeek(start, force) {
+  const key = "cal.week2." + start.toISOString().slice(0, 10);
+  const cached = store.get(key, null);
+  if (!force && cached && Date.now() - cached.t < CACHE_TTL) {
+    Object.assign(mediaInfo, cached.media);
+    return cached.items;
+  }
+
+  const from = Math.floor(start.getTime() / 1000) - 1;
+  const to = Math.floor(addDays(start, 7).getTime() / 1000);
+  const items = [];
+  const media = {}; // detalhes do popover, um por anime (evita uma consulta por passada do mouse)
+  for (let page = 1; page < 20; page++) {
+    // pausa entre as páginas para não estourar o limite de pedidos por minuto do AniList
+    if (page > 1) await new Promise(r => setTimeout(r, 2000));
+    const p = await gql({ start: from, end: to, page });
+    for (const s of p.airingSchedules) {
+      const m = s.media;
+      if (!m || m.isAdult) continue;
+      const { externalLinks, siteUrl, isAdult, ...info } = m;
+      media[m.id] = info;
+      const cr = (m.externalLinks || []).find(l => /crunchyroll/i.test(l.site));
+      items.push({
+        at: s.airingAt * 1000,
+        ep: s.episode,
+        id: m.id,
+        total: m.episodes,
+        romaji: m.title.romaji,
+        english: m.title.english,
+        cover: m.coverImage?.medium,
+        cr: cr?.url || null,
+        url: cr?.url || m.siteUrl,
+      });
+    }
+    if (!p.pageInfo.hasNextPage) break;
+  }
+  store.set(key, { t: Date.now(), items, media });
+  Object.assign(mediaInfo, media);
+  return items;
+}
+
+// ---------- render ----------
+const grid = document.getElementById("grid");
+function setStatus(msg) {
+  const el = grid.querySelector(".status");
+  if (el) el.textContent = msg;
+}
+
+async function load(force = false) {
+  const token = ++loadToken;
+  const end = addDays(weekStart, 6);
+  document.getElementById("range").textContent = `${fmtDate(weekStart)} – ${fmtDate(end)}`;
+  // não avança além da semana atual
+  document.getElementById("next").disabled = weekStart >= startOfWeek(new Date());
+  grid.innerHTML = `<div class="status">Carregando lançamentos…</div>`;
+  try {
+    const items = await fetchWeek(weekStart, force);
+    if (token !== loadToken) return;
+    current = items;
+    render();
+    // em uma coluna só (celular), já abre rolado até o dia de hoje
+    const todayCol = grid.querySelector(".day.today");
+    if (goToToday && todayCol && matchMedia("(max-width: 540px)").matches) {
+      const headerH = document.querySelector("header").offsetHeight;
+      scrollTo(0, todayCol.getBoundingClientRect().top + scrollY - headerH - 8);
+    }
+    goToToday = false;
+    prefetchMine();
+  } catch (e) {
+    if (token !== loadToken) return;
+    grid.innerHTML = `<div class="status err">Não foi possível carregar: ${escapeHtml(e.message)}. <button class="btn" onclick="load(true)">Tentar de novo</button></div>`;
+  }
+}
+
+function render() {
+  const now = Date.now();
+  const today = new Date();
+  const q = document.getElementById("q").value.trim().toLowerCase();
+
+  const visible = current.filter(it => {
+    if (opts.crOnly && !it.cr) return false;
+    if (opts.mineOnly && !mine.has(it.id)) return false;
+    if (opts.hideUpcoming && it.at > now) return false;
+    if (q && !`${it.romaji} ${it.english || ""}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const days = Array.from({ length: 7 }, (_, i) => ({ date: addDays(weekStart, i), items: [], total: 0 }));
+  const dayIndex = it => Math.floor((startOfDay(new Date(it.at)) - weekStart) / DAY_MS + 0.5);
+  for (const it of current) if (days[dayIndex(it)]) days[dayIndex(it)].total++;
+  for (const it of visible) {
+    const idx = dayIndex(it);
+    if (days[idx]) days[idx].items.push(it);
+  }
+
+  grid.className = "week" + (opts.compact ? " compact" : "");
+  grid.innerHTML = days.map((d, i) => {
+    const isToday = sameDay(d.date, today);
+    const out = d.items.filter(it => it.at <= now).length;
+    let rows = "";
+    let nowPlaced = !isToday;
+    for (const it of d.items) {
+      if (!nowPlaced && it.at > now) { rows += `<div class="now-line">agora ${fmtTime(new Date(now))}</div>`; nowPlaced = true; }
+      rows += card(it, now);
+    }
+    if (!nowPlaced && d.items.length) rows += `<div class="now-line">agora ${fmtTime(new Date(now))}</div>`;
+    const countTxt = d.items.length
+      ? (out === d.items.length ? `${out} lançado${out > 1 ? "s" : ""}` : `${out} de ${d.items.length} lançados`)
+      : "";
+    return `<section class="day${isToday ? " today" : ""}">
+      <div class="day-head">
+        <div><span class="wd">${isToday ? "Hoje" : WD[i]}</span><span class="count">${countTxt}</span></div>
+        <span class="dt">${fmtDate(d.date)}</span>
+      </div>
+      <div class="list">${rows || `<div class="empty">${d.total ? "Nenhum episódio com os filtros atuais" : "Sem lançamentos neste dia"}</div>`}</div>
+    </section>`;
+  }).join("");
+}
+
+function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+function card(it, now) {
+  const title = (opts.english && it.english) || it.romaji;
+  const upcoming = it.at > now;
+  const isMine = mine.has(it.id);
+  const tags = [];
+  if (it.ep === 1) tags.push(`<span class="tag new">Estreia</span>`);
+  else if (it.total && it.ep === it.total) tags.push(`<span class="tag final">Final</span>`);
+  const epTxt = `Ep ${it.ep}${it.total ? ` / ${it.total}` : ""}`;
+  const when = upcoming ? `<span>em ${relTime(it.at - now)}</span>` : `<span class="tag out">✓ disponível</span>`;
+  const link = `target="_blank" rel="noopener"`;
+  return `<div class="ep${upcoming ? " upcoming" : ""}${isMine ? " mine" : ""}" data-mid="${it.id}" data-ep="${it.ep}">
+    <a class="ep-link" href="${escapeAttr(episodeLinks.get(`${it.id}:${it.ep}`) || it.url)}" ${link}>
+      ${it.cover ? `<img src="${escapeAttr(it.cover)}" alt="" loading="lazy">` : `<div class="ph"></div>`}
+    </a>
+    <div class="info">
+      <a class="series" href="${escapeAttr(it.url)}" ${link}>
+        <div class="time">${fmtTime(new Date(it.at))}</div>
+        <div class="title">${escapeHtml(title)}</div>
+      </a>
+      <div class="meta"><span>${epTxt}</span>${tags.join("")}${when}</div>
+    </div>
+    <button class="star${isMine ? " on" : ""}" data-id="${it.id}" title="${isMine ? "Remover da minha lista" : "Adicionar à minha lista"}" aria-label="Minha lista">${isMine ? "★" : "☆"}</button>
+    <button class="more" title="Ver detalhes" aria-label="Ver detalhes">ⓘ</button>
+  </div>`;
+}
+
+function relTime(ms) {
+  const m = Math.round(ms / 60000);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h${m % 60 ? String(m % 60).padStart(2, "0") : ""}`;
+  return `${Math.round(h / 24)}d`;
+}
+
+function escapeHtml(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+const escapeAttr = escapeHtml;
+
+// ---------- eventos ----------
+document.querySelectorAll(".chip[data-opt]").forEach(chip => {
+  const k = chip.dataset.opt;
+  chip.setAttribute("aria-pressed", String(!!opts[k]));
+  chip.addEventListener("click", () => {
+    opts[k] = !opts[k];
+    chip.setAttribute("aria-pressed", String(opts[k]));
+    store.set("cal.opts", opts);
+    render();
+  });
+});
+document.getElementById("q").addEventListener("input", render);
+document.getElementById("prev").onclick = () => { weekStart = addDays(weekStart, -7); load(); };
+document.getElementById("next").onclick = () => { weekStart = addDays(weekStart, 7); load(); };
+document.getElementById("today").onclick = () => { weekStart = startOfWeek(new Date()); goToToday = true; load(); };
+document.getElementById("reload").onclick = () => load(true);
+
+grid.addEventListener("click", e => {
+  const more = e.target.closest(".more");
+  if (more) {
+    hidePop();
+    hoverEl = more.closest(".ep");
+    showPop(hoverEl);
+    return;
+  }
+  const star = e.target.closest(".star");
+  if (!star) return;
+  e.preventDefault();
+  const id = Number(star.dataset.id);
+  if (mine.has(id)) mine.delete(id);
+  else { mine.add(id); prefetch(id); }
+  store.set("cal.mine", [...mine]);
+  render();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") return hidePop();
+  if (e.target.matches("input")) return;
+  if (e.key === "ArrowLeft") document.getElementById("prev").click();
+  if (e.key === "ArrowRight") document.getElementById("next").click();
+});
+
+// ---------- popover de detalhes ----------
+const DETAIL_QUERY = `
+query ($id: Int) {
+  Media(id: $id) {
+    id idMal
+    title { romaji english }
+    description(asHtml: false)
+    averageScore popularity episodes format season seasonYear
+    genres
+    bannerImage
+    coverImage { extraLarge }
+    studios(isMain: true) { nodes { name } }
+    streamingEpisodes { title thumbnail url site }
+  }
+}`;
+const SEASONS = { WINTER: "Inverno", SPRING: "Primavera", SUMMER: "Verão", FALL: "Outono" };
+const FORMATS = { TV: "Série", TV_SHORT: "Curta", ONA: "ONA", OVA: "OVA", MOVIE: "Filme", SPECIAL: "Especial" };
+const details = new Map(); // id -> Promise<media>
+const episodeLinks = new Map(); // "id:ep" -> link direto do episódio na Crunchyroll
+const pop = document.getElementById("pop");
+let hoverEl = null, hoverTimer = 0, hideTimer = 0;
+
+function getDetails(id) {
+  if (mediaInfo[id]) return Promise.resolve(mediaInfo[id]);
+  if (!details.has(id)) {
+    const p = fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ query: DETAIL_QUERY, variables: { id } }),
+    }).then(r => r.json()).then(j => {
+      if (!j.data?.Media) throw new Error("sem dados");
+      return j.data.Media;
+    });
+    p.catch(() => details.delete(id));
+    details.set(id, p);
+  }
+  return details.get(id);
+}
+
+// miniaturas de episódio do MyAnimeList (via Jikan), que costuma ter as imagens da Crunchyroll
+const malEpisodes = new Map(); // idMal -> Promise<[{n, title, img}]>
+function getMalEpisodes(idMal) {
+  if (!idMal) return Promise.resolve([]);
+  if (!malEpisodes.has(idMal)) {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 5000);
+    const p = fetch(`https://api.jikan.moe/v4/anime/${idMal}/videos/episodes`, { signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : { data: [] })
+      .then(j => (j.data || []).map(e => ({
+        n: e.mal_id || Number((e.episode || "").match(/\d+/)?.[0]),
+        title: e.title || "",
+        img: e.images?.jpg?.image_url,
+      })))
+      .catch(() => { malEpisodes.delete(idMal); return []; });
+    malEpisodes.set(idMal, p);
+  }
+  return malEpisodes.get(idMal);
+}
+
+// imagem do episódio: AniList (Crunchyroll primeiro) → MyAnimeList → banner/capa da série
+function episodeShot(m, ep, malEps) {
+  const eps = (m.streamingEpisodes || []).map(s => ({ ...s, n: Number((s.title.match(/Episode\s+(\d+)/i) || [])[1]) }));
+  const match = eps.filter(s => s.n === ep).sort((a, b) => /crunchyroll/i.test(b.site) - /crunchyroll/i.test(a.site))[0];
+  const href = match && /crunchyroll/i.test(match.site) ? match.url : null;
+  if (match?.thumbnail) return { src: match.thumbnail, href, label: `Episódio ${ep}`, epTitle: match.title.replace(/^Episode\s+\d+\s*[-:–]\s*/i, "") };
+  const mal = malEps.find(e => e.n === ep && e.img);
+  if (mal) return { src: mal.img, href, label: `Episódio ${ep}`, epTitle: mal.title };
+  return { src: m.bannerImage || m.coverImage?.extraLarge, href, label: `Episódio ${ep}`, epTitle: "" };
+}
+
+function cleanSynopsis(s) {
+  const tmp = document.createElement("div");
+  tmp.innerHTML = (s || "").replace(/<br\s*\/?>/gi, " ");
+  return tmp.textContent.replace(/\(Source:[^)]*\)/i, "").replace(/\s+/g, " ").trim();
+}
+
+// ---------- tradução ----------
+const GENRES_PT = {
+  Action: "Ação", Adventure: "Aventura", Comedy: "Comédia", Drama: "Drama", Ecchi: "Ecchi", Fantasy: "Fantasia",
+  Horror: "Terror", "Mahou Shoujo": "Garota mágica", Mecha: "Mecha", Music: "Música", Mystery: "Mistério",
+  Psychological: "Psicológico", Romance: "Romance", "Sci-Fi": "Ficção científica", "Slice of Life": "Cotidiano",
+  Sports: "Esportes", Supernatural: "Sobrenatural", Thriller: "Suspense",
+};
+const translations = store.get("cal.tr", {}); // id -> sinopse traduzida
+const pendingTr = new Map(); // id -> Promise<string>
+const trFailed = new Set(); // ids cuja tradução falhou nesta sessão (mostra o original)
+let browserTranslator = null;
+let trBlockedUntil = store.get("cal.trBlockedUntil", 0); // cota diária do MyMemory esgotada até este horário
+
+// só o começo da sinopse aparece no popover, então não vale traduzir o resto
+function synopsisExcerpt(s, max = 700) {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
+  return end > 200 ? cut.slice(0, end + 1) : cut + "…";
+}
+
+// 1º: tradutor embutido do navegador (Chrome/Edge, roda no próprio PC) · 2º: Google · 3º: MyMemory
+async function translateText(text) {
+  if ("Translator" in self) {
+    try {
+      browserTranslator ??= Translator.availability({ sourceLanguage: "en", targetLanguage: "pt" })
+        .then(a => a === "unavailable" ? null : Translator.create({ sourceLanguage: "en", targetLanguage: "pt" }))
+        .catch(() => null);
+      const t = await browserTranslator;
+      if (t) return await t.translate(text);
+    } catch { browserTranslator = null; }
+  }
+  // 2º: Google Tradutor (endpoint público gratuito, sem chave)
+  try {
+    const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt&dt=t&q=${encodeURIComponent(text)}`);
+    if (r.ok) {
+      const j = await r.json();
+      const out = (j[0] || []).map(seg => seg[0]).join("").trim();
+      if (out) return out;
+    }
+  } catch {}
+  // 3º: MyMemory
+  if (Date.now() < trBlockedUntil) throw new Error("limite de tradução");
+  // o MyMemory aceita até ~500 caracteres por pedido: traduz frase a frase em blocos
+  const parts = [];
+  let chunk = "";
+  for (const sentence of text.match(/[^.!?]+[.!?…]*["”]?\s*/g) || [text]) {
+    if ((chunk + sentence).length > 450 && chunk) { parts.push(chunk); chunk = ""; }
+    chunk += sentence;
+  }
+  if (chunk) parts.push(chunk);
+  const out = [];
+  for (const p of parts) {
+    const r = await fetch(`https://api.mymemory.translated.net/get?langpair=en|pt-BR&q=${encodeURIComponent(p.trim())}`);
+    const j = await r.json();
+    if (j.responseStatus !== 200 || /MYMEMORY WARNING/i.test(j.responseData?.translatedText)) {
+      // cota diária esgotada: não tenta de novo até liberar (o aviso diz em quantas horas)
+      const h = Number(String(j.responseDetails || j.responseData?.translatedText).match(/(\d+)\s*HOURS/i)?.[1] ?? 1);
+      trBlockedUntil = Date.now() + (h + 1) * 3600000;
+      store.set("cal.trBlockedUntil", trBlockedUntil);
+      throw new Error("limite de tradução");
+    }
+    out.push(j.responseData.translatedText);
+  }
+  return out.join(" ");
+}
+
+function translateSynopsis(id, text) {
+  if (translations[id]) return Promise.resolve(translations[id]);
+  if (!pendingTr.has(id)) {
+    const p = translateText(text).then(t => {
+      translations[id] = t;
+      store.set("cal.tr", translations);
+      return t;
+    }, e => { trFailed.add(id); throw e; }).finally(() => pendingTr.delete(id));
+    pendingTr.set(id, p);
+  }
+  return pendingTr.get(id);
+}
+
+const compactNum = n => n >= 1000 ? (n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil" : String(n);
+
+function renderPop(m, ep, seriesUrl, malEps = []) {
+  const shot = episodeShot(m, ep, malEps);
+  const epUrl = shot.href || seriesUrl;
+  const link = `target="_blank" rel="noopener"`;
+  const title = (opts.english && m.title.english) || m.title.romaji;
+  const facts = [
+    [FORMATS[m.format] || m.format, m.season && `${SEASONS[m.season]} ${m.seasonYear}`].filter(Boolean).join(" · "),
+    m.episodes ? `${m.episodes} episódios` : "Episódios em andamento",
+    m.studios?.nodes?.map(s => s.name).join(", "),
+  ].filter(Boolean);
+  const rating = m.averageScore
+    ? `<div class="rating"><b>${(m.averageScore / 20).toFixed(1).replace(".", ",")}</b><span class="s">★</span><span class="n">no AniList · ${compactNum(m.popularity || 0)} membros</span></div>`
+    : `<div class="rating"><span class="n">Ainda sem nota</span></div>`;
+  const original = synopsisExcerpt(cleanSynopsis(m.description));
+  const syn = translations[m.id] || (trFailed.has(m.id) ? original : original && "Traduzindo sinopse…");
+  return `${CLOSE_BTN}
+    <a class="shot${shot.href ? " play" : ""}" href="${escapeAttr(epUrl)}" ${link} title="${shot.href ? `Assistir episódio ${ep}` : "Abrir anime na Crunchyroll (link direto do episódio indisponível)"}">${shot.src ? `<img src="${escapeAttr(shot.src)}" alt="">` : ""}<span class="lbl">${shot.label}</span></a>
+    <div class="body">
+      <h3><a href="${escapeAttr(seriesUrl)}" ${link} title="Ver todos os episódios">${escapeHtml(title)}</a></h3>
+      ${shot.epTitle ? `<div class="eptitle">${escapeHtml(shot.epTitle)}</div>` : ""}
+      ${rating}
+      <div class="facts">${facts.map(escapeHtml).join("<br>")}</div>
+      ${m.genres?.length ? `<div class="genres">${m.genres.slice(0, 4).map(g => `<span class="tag">${escapeHtml(GENRES_PT[g] || g)}</span>`).join("")}</div>` : ""}
+      ${syn ? `<p class="syn${syn === original || translations[m.id] ? "" : " pending"}">${escapeHtml(syn)}</p>` : ""}
+    </div>`;
+}
+
+const isTouch = matchMedia("(hover: none)");
+const CLOSE_BTN = `<button class="close" aria-label="Fechar detalhes">✕</button>`;
+
+function placePop(el) {
+  if (isTouch.matches) return; // no toque o CSS prende o popover embaixo da tela
+  const r = el.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight, gap = 10;
+  let left = r.right + gap;
+  if (left + w > innerWidth - 8) left = r.left - w - gap;
+  if (left < 8) left = Math.min(Math.max(8, r.left), innerWidth - w - 8);
+  let top = r.top;
+  if (top + h > innerHeight - 8) top = innerHeight - h - 8;
+  pop.style.left = left + "px";
+  pop.style.top = Math.max(8, top) + "px";
+}
+
+async function showPop(el) {
+  const id = Number(el.dataset.mid), ep = Number(el.dataset.ep);
+  const seriesUrl = el.querySelector(".series").href;
+  pop.innerHTML = `${CLOSE_BTN}<div class="body"><div class="loading">Carregando detalhes…</div></div>`;
+  placePop(el);
+  pop.classList.add("show");
+  try {
+    const m = await getDetails(id);
+    const epHref = episodeShot(m, ep, []).href;
+    if (epHref) {
+      episodeLinks.set(`${id}:${ep}`, epHref);
+      el.querySelector(".ep-link").href = epHref;
+    }
+    if (hoverEl !== el) return;
+    pop.innerHTML = renderPop(m, ep, seriesUrl);
+    placePop(el);
+    // troca o "Traduzindo…" pela sinopse traduzida (ou pelo original, se a tradução falhar)
+    const excerpt = synopsisExcerpt(cleanSynopsis(m.description));
+    if (excerpt && !translations[m.id] && !trFailed.has(m.id)) {
+      const fill = t => {
+        const synEl = hoverEl === el && pop.querySelector(".syn");
+        if (synEl) { synEl.textContent = t; synEl.classList.remove("pending"); placePop(el); }
+      };
+      translateSynopsis(m.id, excerpt).then(fill, () => fill(excerpt));
+    }
+    // troca o banner pela miniatura do episódio assim que o MyAnimeList responder
+    const malEps = await getMalEpisodes(m.idMal);
+    if (hoverEl !== el || !malEps.some(e => e.n === ep && e.img)) return;
+    pop.innerHTML = renderPop(m, ep, seriesUrl, malEps);
+    placePop(el);
+  } catch {
+    if (hoverEl === el) pop.innerHTML = `${CLOSE_BTN}<div class="body"><div class="loading">Não foi possível carregar os detalhes.</div></div>`;
+  }
+}
+
+function hidePop() {
+  clearTimeout(hoverTimer);
+  clearTimeout(hideTimer);
+  hoverEl = null;
+  pop.classList.remove("show");
+}
+// pequena folga para o mouse atravessar o espaço entre o card e o popover
+const scheduleHide = () => { clearTimeout(hideTimer); hideTimer = setTimeout(hidePop, 180); };
+
+// deixa a tradução pronta antes de o popover abrir
+function prefetch(id) {
+  return getDetails(id).then(m => {
+    const excerpt = synopsisExcerpt(cleanSynopsis(m.description));
+    if (excerpt && !translations[id] && !trFailed.has(id)) return translateSynopsis(id, excerpt);
+  }).catch(() => {});
+}
+
+// deixa pronta, em segundo plano, a tradução dos animes da "Minha lista" que estão na semana
+async function prefetchMine() {
+  const ids = [...new Set(current.filter(it => mine.has(it.id) && !translations[it.id]).map(it => it.id))];
+  for (const id of ids) {
+    await prefetch(id);
+    await new Promise(r => setTimeout(r, 1000)); // não dispara tudo de uma vez no tradutor
+  }
+}
+
+// mouse e teclado: abre ao parar sobre o card (ou focar nele com Tab)
+function hoverStart(el) {
+  clearTimeout(hideTimer);
+  if (el === hoverEl) return;
+  clearTimeout(hoverTimer);
+  pop.classList.remove("show");
+  hoverEl = el;
+  hoverTimer = setTimeout(() => hoverEl === el && showPop(el), 250);
+}
+grid.addEventListener("focusin", e => {
+  const el = e.target.closest(".ep");
+  if (el && !isTouch.matches) hoverStart(el);
+});
+grid.addEventListener("focusout", e => {
+  const el = e.target.closest(".ep");
+  if (el && !el.contains(e.relatedTarget) && !pop.contains(e.relatedTarget)) scheduleHide();
+});
+// toque: fecha no ✕ ou tocando fora
+pop.addEventListener("click", e => { if (e.target.closest(".close")) hidePop(); });
+document.addEventListener("click", e => {
+  if (isTouch.matches && pop.classList.contains("show") && !pop.contains(e.target) && !e.target.closest(".more")) hidePop();
+});
+
+grid.addEventListener("mouseover", e => {
+  const el = e.target.closest(".ep");
+  if (!el || isTouch.matches) return;
+  hoverStart(el);
+});
+grid.addEventListener("mouseout", e => {
+  const el = e.target.closest(".ep");
+  if (el && !isTouch.matches && !el.contains(e.relatedTarget) && el !== document.activeElement?.closest(".ep")) scheduleHide();
+});
+pop.addEventListener("mouseenter", () => clearTimeout(hideTimer));
+pop.addEventListener("mouseleave", e => { if (!hoverEl?.contains(e.relatedTarget)) scheduleHide(); });
+addEventListener("scroll", hidePop, { passive: true });
+
+// atualiza "em X min" / linha do agora a cada minuto
+setInterval(() => current.length && !hoverEl && render(), 60000);
+
+load();
+</script>
+</body>
+</html>

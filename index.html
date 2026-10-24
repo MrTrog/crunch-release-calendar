@@ -121,7 +121,7 @@
     border-bottom: 1px solid var(--line);
     display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
   }
-  .day-head .wd { font-weight: 800; text-transform: uppercase; letter-spacing: .04em; font-size: 13px; }
+  .day-head .wd { font-weight: 800; font-size: 14px; }
   .day.today .wd { color: var(--accent-text); }
   .day-head .dt { color: var(--muted); font-size: 12px; }
   .day-head .count { color: var(--faint); font-size: 11px; display: block; margin-top: 2px; }
@@ -159,6 +159,9 @@
   /* episódio futuro: só a capa fica apagada, o texto continua legível */
   .ep.upcoming img { opacity: .45; }
   .ep.upcoming .title { color: var(--muted); }
+  /* favoritos: fundo no laranja da borda de hoje, em tom suave para o texto continuar legível */
+  .ep.mine { background: var(--accent-soft); }
+  .ep.mine:hover { background: rgba(244, 117, 33, .22); }
 
   .star, .more {
     position: absolute; right: 4px;
@@ -330,7 +333,7 @@ query ($start: Int, $end: Int, $page: Int) {
 
 const DAY_MS = 86400000;
 const CACHE_TTL = 30 * 60 * 1000;
-const WD = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+const WD = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
 // ---------- estado ----------
 const store = {
@@ -493,7 +496,7 @@ function render() {
     }
     if (!nowPlaced && d.items.length) rows += `<div class="now-line">agora ${fmtTime(new Date(now))}</div>`;
     const countTxt = d.items.length
-      ? (out === d.items.length ? `${out} lançado${out > 1 ? "s" : ""}` : `${out} de ${d.items.length} lançados`)
+      ? (out === d.items.length ? `${out} Lançamento${out > 1 ? "s" : ""}` : `${out} de ${d.items.length} Lançamentos`)
       : "";
     return `<section class="day${isToday ? " today" : ""}">
       <div class="day-head">

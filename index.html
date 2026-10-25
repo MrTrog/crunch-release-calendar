@@ -104,6 +104,7 @@
     border-radius: 999px; padding: 5px 12px; width: 180px; outline: none;
   }
   .search:focus { border-color: var(--accent); }
+  .lang { width: auto; cursor: pointer; color: var(--muted); }
 
   /* ---------- Grade ---------- */
   main { max-width: 1600px; margin: 0 auto; padding: 16px; }
@@ -268,30 +269,31 @@
         <path d="M7 14h18M12 6.5v4M20 6.5v4" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
         <path d="M14.5 16.6v5.6l4.8-2.8z" fill="#fff"/>
       </svg>
-      <h1>Lançamentos da semana</h1>
+      <h1 data-i18n="heading"></h1>
     </div>
     <div class="weeknav">
-      <button class="btn icon" id="prev" title="Semana anterior" aria-label="Semana anterior">
+      <button class="btn icon" id="prev" data-i18n-label="prevWeek">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
       <span class="range" id="range"></span>
-      <button class="btn icon" id="next" title="Próxima semana" aria-label="Próxima semana">
+      <button class="btn icon" id="next" data-i18n-label="nextWeek">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
       </button>
-      <button class="btn" id="today">Hoje</button>
-      <button class="btn icon" id="reload" title="Atualizar" aria-label="Atualizar">
+      <button class="btn" id="today" data-i18n="today"></button>
+      <button class="btn icon" id="reload" data-i18n-label="refresh">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>
       </button>
     </div>
   </div>
   <div class="bar" style="padding-top:0">
     <div class="filters">
-      <button class="chip" data-opt="crOnly" title="Só animes com link para a Crunchyroll">Crunchyroll</button>
-      <button class="chip" data-opt="mineOnly" title="Só os animes marcados com ★">★ Minha lista</button>
-      <button class="chip" data-opt="hideUpcoming" title="Esconde episódios que ainda não saíram">✓ Disponível</button>
-      <button class="chip" data-opt="english" title="Mostrar títulos em inglês">Títulos em inglês</button>
-      <button class="chip" data-opt="compact" title="Esconder capas">Compacto</button>
-      <input class="search" id="q" type="search" placeholder="Buscar anime…" autocomplete="off">
+      <button class="chip" data-opt="crOnly" data-i18n-title="crOnlyTip">Crunchyroll</button>
+      <button class="chip" data-opt="mineOnly" data-i18n="myList" data-i18n-title="myListTip"></button>
+      <button class="chip" data-opt="hideUpcoming" data-i18n="available" data-i18n-title="availableTip"></button>
+      <button class="chip" data-opt="english" data-i18n="englishTitles" data-i18n-title="englishTitlesTip"></button>
+      <button class="chip" data-opt="compact" data-i18n="compact" data-i18n-title="compactTip"></button>
+      <input class="search" id="q" type="search" data-i18n-ph="search" autocomplete="off">
+      <select class="search lang" id="lang" data-i18n-label="language"></select>
     </div>
   </div>
 </header>
@@ -299,12 +301,9 @@
 <main>
   <div id="grid"></div>
 </main>
-<div class="pop" id="pop" role="dialog" aria-label="Detalhes do anime"></div>
+<div class="pop" id="pop" role="dialog" data-i18n-label="detailsLabel"></div>
 
-<footer>
-  Dados de <a href="https://anilist.co" target="_blank" rel="noopener">AniList</a>. O horário é o da exibição no Japão convertido para o seu fuso;
-  na Crunchyroll o episódio costuma aparecer junto ou até ~1h depois. Clique num anime para abrir na Crunchyroll.
-</footer>
+<footer id="footer"></footer>
 
 <script>
 const API = "https://graphql.anilist.co";
@@ -337,7 +336,218 @@ const WEEK_PREFIX = "cal.week2.";
 const MAX_WEEKS = 6;            // semanas guardadas no navegador (~300 KB cada; o limite é ~5 MB)
 const MAX_TRANSLATIONS = 300;   // sinopses traduzidas guardadas (~1 KB cada)
 const PAGE_PAUSE = 500;         // pausa entre as páginas do AniList (limite: 30 pedidos/min)
-const WD = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+// ---------- idiomas ----------
+// textos da interface; {x} é trocado pelo valor na hora de usar
+const I18N = {
+  pt: {
+    name: "Português", htmlLang: "pt-BR",
+    docTitle: "Calendário de Lançamentos", heading: "Lançamentos da semana",
+    prevWeek: "Semana anterior", nextWeek: "Próxima semana", today: "Hoje", refresh: "Atualizar",
+    crOnlyTip: "Só animes com link para a Crunchyroll",
+    myList: "★ Minha lista", myListTip: "Só os animes marcados com ★",
+    available: "✓ Disponível", availableTip: "Esconde episódios que ainda não saíram",
+    englishTitles: "Títulos em inglês", englishTitlesTip: "Mostrar títulos em inglês",
+    compact: "Compacto", compactTip: "Esconder capas",
+    search: "Buscar anime…", language: "Idioma", detailsLabel: "Detalhes do anime",
+    footer: "Site não oficial, sem ligação com a Crunchyroll. Dados de {anilist}. O horário é o da exibição no Japão convertido para o seu fuso; na Crunchyroll o episódio costuma aparecer junto ou até ~1h depois. Clique num anime para abrir na Crunchyroll.",
+    loading: "Carregando lançamentos…", loadingShort: "Carregando…",
+    busy: "AniList ocupado, tentando de novo em {s}s…",
+    noResponse: "o AniList não respondeu (talvez limite de requisições, tente em alguns minutos)",
+    httpError: "AniList respondeu {code}", loadFailed: "Não foi possível carregar", retry: "Tentar de novo",
+    filteredEmpty: "Nenhum episódio com os filtros atuais", dayEmpty: "Sem lançamentos neste dia",
+    count: n => `${n} Lançamento${n > 1 ? "s" : ""}`, countOf: (o, t) => `${o} de ${t} Lançamentos`,
+    now: "agora", in: "em", premiere: "Estreia", final: "Final",
+    addList: "Adicionar à minha lista", removeList: "Remover da minha lista",
+    details: "Ver detalhes", close: "Fechar detalhes",
+    loadingDetails: "Carregando detalhes…", detailsFailed: "Não foi possível carregar os detalhes.",
+    episode: "Episódio {n}", openCR: "Abrir na Crunchyroll",
+    onAniList: "no AniList · {n} membros", noScore: "Ainda sem nota",
+    episodes: "{n} episódios", ongoing: "Episódios em andamento", translating: "Traduzindo sinopse…",
+    seasons: ["Inverno", "Primavera", "Verão", "Outono"],
+    formats: { TV: "Série", TV_SHORT: "Curta", MOVIE: "Filme", SPECIAL: "Especial" },
+    genres: ["Ação", "Aventura", "Comédia", "Drama", "Ecchi", "Fantasia", "Terror", "Garota mágica", "Mecha", "Música", "Mistério", "Psicológico", "Romance", "Ficção científica", "Cotidiano", "Esportes", "Sobrenatural", "Suspense"],
+  },
+  en: {
+    name: "English", htmlLang: "en",
+    docTitle: "Anime Release Calendar", heading: "This week's releases",
+    prevWeek: "Previous week", nextWeek: "Next week", today: "Today", refresh: "Refresh",
+    crOnlyTip: "Only anime with a Crunchyroll link",
+    myList: "★ My list", myListTip: "Only anime marked with ★",
+    available: "✓ Available", availableTip: "Hide episodes that haven't aired yet",
+    englishTitles: "English titles", englishTitlesTip: "Show English titles",
+    compact: "Compact", compactTip: "Hide covers",
+    search: "Search anime…", language: "Language", detailsLabel: "Anime details",
+    footer: "Unofficial site, not affiliated with Crunchyroll. Data from {anilist}. Times are the Japanese broadcast converted to your time zone; on Crunchyroll episodes usually appear at the same time or up to ~1h later. Click an anime to open it on Crunchyroll.",
+    loading: "Loading releases…", loadingShort: "Loading…",
+    busy: "AniList is busy, retrying in {s}s…",
+    noResponse: "AniList didn't respond (maybe a rate limit, try again in a few minutes)",
+    httpError: "AniList returned {code}", loadFailed: "Couldn't load", retry: "Try again",
+    filteredEmpty: "No episodes match the current filters", dayEmpty: "No releases this day",
+    count: n => `${n} release${n > 1 ? "s" : ""}`, countOf: (o, t) => `${o} of ${t} released`,
+    now: "now", in: "in", premiere: "Premiere", final: "Final",
+    addList: "Add to my list", removeList: "Remove from my list",
+    details: "Show details", close: "Close details",
+    loadingDetails: "Loading details…", detailsFailed: "Couldn't load the details.",
+    episode: "Episode {n}", openCR: "Open on Crunchyroll",
+    onAniList: "on AniList · {n} members", noScore: "No score yet",
+    episodes: "{n} episodes", ongoing: "Ongoing", translating: "",
+    seasons: ["Winter", "Spring", "Summer", "Fall"],
+    formats: { TV: "TV series", TV_SHORT: "TV short", MOVIE: "Movie", SPECIAL: "Special" },
+    genres: null, // o AniList já manda os gêneros em inglês
+  },
+  es: {
+    name: "Español", htmlLang: "es",
+    docTitle: "Calendario de estrenos", heading: "Estrenos de la semana",
+    prevWeek: "Semana anterior", nextWeek: "Semana siguiente", today: "Hoy", refresh: "Actualizar",
+    crOnlyTip: "Solo anime con enlace a Crunchyroll",
+    myList: "★ Mi lista", myListTip: "Solo los anime marcados con ★",
+    available: "✓ Disponible", availableTip: "Oculta los episodios que aún no salieron",
+    englishTitles: "Títulos en inglés", englishTitlesTip: "Mostrar títulos en inglés",
+    compact: "Compacto", compactTip: "Ocultar portadas",
+    search: "Buscar anime…", language: "Idioma", detailsLabel: "Detalles del anime",
+    footer: "Sitio no oficial, sin relación con Crunchyroll. Datos de {anilist}. El horario es el de la emisión en Japón convertido a tu zona horaria; en Crunchyroll el episodio suele aparecer a la vez o hasta ~1 h después. Haz clic en un anime para abrirlo en Crunchyroll.",
+    loading: "Cargando estrenos…", loadingShort: "Cargando…",
+    busy: "AniList está ocupado, reintentando en {s} s…",
+    noResponse: "AniList no respondió (quizás por un límite de solicitudes, prueba en unos minutos)",
+    httpError: "AniList respondió {code}", loadFailed: "No se pudo cargar", retry: "Reintentar",
+    filteredEmpty: "Ningún episodio con los filtros actuales", dayEmpty: "Sin estrenos este día",
+    count: n => `${n} estreno${n > 1 ? "s" : ""}`, countOf: (o, t) => `${o} de ${t} estrenados`,
+    now: "ahora", in: "en", premiere: "Estreno", final: "Final",
+    addList: "Añadir a mi lista", removeList: "Quitar de mi lista",
+    details: "Ver detalles", close: "Cerrar detalles",
+    loadingDetails: "Cargando detalles…", detailsFailed: "No se pudieron cargar los detalles.",
+    episode: "Episodio {n}", openCR: "Abrir en Crunchyroll",
+    onAniList: "en AniList · {n} miembros", noScore: "Aún sin nota",
+    episodes: "{n} episodios", ongoing: "En emisión", translating: "Traduciendo sinopsis…",
+    seasons: ["Invierno", "Primavera", "Verano", "Otoño"],
+    formats: { TV: "Serie", TV_SHORT: "Corto", MOVIE: "Película", SPECIAL: "Especial" },
+    genres: ["Acción", "Aventura", "Comedia", "Drama", "Ecchi", "Fantasía", "Terror", "Chicas mágicas", "Mecha", "Música", "Misterio", "Psicológico", "Romance", "Ciencia ficción", "Recuentos de la vida", "Deportes", "Sobrenatural", "Suspenso"],
+  },
+  fr: {
+    name: "Français", htmlLang: "fr",
+    docTitle: "Calendrier des sorties", heading: "Sorties de la semaine",
+    prevWeek: "Semaine précédente", nextWeek: "Semaine suivante", today: "Aujourd'hui", refresh: "Actualiser",
+    crOnlyTip: "Seulement les animes avec un lien Crunchyroll",
+    myList: "★ Ma liste", myListTip: "Seulement les animes marqués d'une ★",
+    available: "✓ Disponible", availableTip: "Masque les épisodes pas encore sortis",
+    englishTitles: "Titres en anglais", englishTitlesTip: "Afficher les titres en anglais",
+    compact: "Compact", compactTip: "Masquer les affiches",
+    search: "Rechercher un anime…", language: "Langue", detailsLabel: "Détails de l'anime",
+    footer: "Site non officiel, sans lien avec Crunchyroll. Données de {anilist}. L'heure est celle de la diffusion au Japon, convertie dans votre fuseau horaire ; sur Crunchyroll, l'épisode arrive généralement en même temps ou jusqu'à ~1 h plus tard. Cliquez sur un anime pour l'ouvrir sur Crunchyroll.",
+    loading: "Chargement des sorties…", loadingShort: "Chargement…",
+    busy: "AniList est occupé, nouvel essai dans {s} s…",
+    noResponse: "AniList n'a pas répondu (peut-être une limite de requêtes, réessayez dans quelques minutes)",
+    httpError: "AniList a répondu {code}", loadFailed: "Impossible de charger", retry: "Réessayer",
+    filteredEmpty: "Aucun épisode avec les filtres actuels", dayEmpty: "Aucune sortie ce jour",
+    count: n => `${n} sortie${n > 1 ? "s" : ""}`, countOf: (o, t) => `${o} sur ${t} sorties`,
+    now: "maintenant", in: "dans", premiere: "Première", final: "Final",
+    addList: "Ajouter à ma liste", removeList: "Retirer de ma liste",
+    details: "Voir les détails", close: "Fermer les détails",
+    loadingDetails: "Chargement des détails…", detailsFailed: "Impossible de charger les détails.",
+    episode: "Épisode {n}", openCR: "Ouvrir sur Crunchyroll",
+    onAniList: "sur AniList · {n} membres", noScore: "Pas encore de note",
+    episodes: "{n} épisodes", ongoing: "En cours", translating: "Traduction du résumé…",
+    seasons: ["Hiver", "Printemps", "Été", "Automne"],
+    formats: { TV: "Série", TV_SHORT: "Court", MOVIE: "Film", SPECIAL: "Spécial" },
+    genres: ["Action", "Aventure", "Comédie", "Drame", "Ecchi", "Fantasy", "Horreur", "Magical girl", "Mecha", "Musique", "Mystère", "Psychologique", "Romance", "Science-fiction", "Tranche de vie", "Sport", "Surnaturel", "Thriller"],
+  },
+  de: {
+    name: "Deutsch", htmlLang: "de",
+    docTitle: "Anime-Veröffentlichungskalender", heading: "Neue Folgen der Woche",
+    prevWeek: "Vorherige Woche", nextWeek: "Nächste Woche", today: "Heute", refresh: "Aktualisieren",
+    crOnlyTip: "Nur Anime mit Crunchyroll-Link",
+    myList: "★ Meine Liste", myListTip: "Nur mit ★ markierte Anime",
+    available: "✓ Verfügbar", availableTip: "Blendet noch nicht erschienene Folgen aus",
+    englishTitles: "Englische Titel", englishTitlesTip: "Englische Titel anzeigen",
+    compact: "Kompakt", compactTip: "Cover ausblenden",
+    search: "Anime suchen…", language: "Sprache", detailsLabel: "Anime-Details",
+    footer: "Inoffizielle Seite, nicht mit Crunchyroll verbunden. Daten von {anilist}. Die Zeiten sind die japanische Ausstrahlung in deiner Zeitzone; auf Crunchyroll erscheint die Folge meist gleichzeitig oder bis zu ~1 Std. später. Klicke auf einen Anime, um ihn auf Crunchyroll zu öffnen.",
+    loading: "Lade neue Folgen…", loadingShort: "Lädt…",
+    busy: "AniList ist ausgelastet, neuer Versuch in {s} s…",
+    noResponse: "AniList hat nicht geantwortet (vielleicht ein Anfragelimit, versuche es in ein paar Minuten erneut)",
+    httpError: "AniList antwortete {code}", loadFailed: "Laden fehlgeschlagen", retry: "Erneut versuchen",
+    filteredEmpty: "Keine Folgen mit den aktuellen Filtern", dayEmpty: "Keine Folgen an diesem Tag",
+    count: n => `${n} ${n > 1 ? "Folgen" : "Folge"}`, countOf: (o, t) => `${o} von ${t} erschienen`,
+    now: "jetzt", in: "in", premiere: "Premiere", final: "Finale",
+    addList: "Zu meiner Liste hinzufügen", removeList: "Von meiner Liste entfernen",
+    details: "Details anzeigen", close: "Details schließen",
+    loadingDetails: "Lade Details…", detailsFailed: "Details konnten nicht geladen werden.",
+    episode: "Folge {n}", openCR: "Auf Crunchyroll öffnen",
+    onAniList: "auf AniList · {n} Mitglieder", noScore: "Noch keine Bewertung",
+    episodes: "{n} Folgen", ongoing: "Laufend", translating: "Übersetze Zusammenfassung…",
+    seasons: ["Winter", "Frühling", "Sommer", "Herbst"],
+    formats: { TV: "Serie", TV_SHORT: "Kurzserie", MOVIE: "Film", SPECIAL: "Special" },
+    genres: ["Action", "Abenteuer", "Komödie", "Drama", "Ecchi", "Fantasy", "Horror", "Magical Girl", "Mecha", "Musik", "Mystery", "Psychologisch", "Romantik", "Science-Fiction", "Slice of Life", "Sport", "Übernatürlich", "Thriller"],
+  },
+  it: {
+    name: "Italiano", htmlLang: "it",
+    docTitle: "Calendario delle uscite", heading: "Uscite della settimana",
+    prevWeek: "Settimana precedente", nextWeek: "Settimana successiva", today: "Oggi", refresh: "Aggiorna",
+    crOnlyTip: "Solo anime con link a Crunchyroll",
+    myList: "★ La mia lista", myListTip: "Solo gli anime segnati con ★",
+    available: "✓ Disponibile", availableTip: "Nasconde gli episodi non ancora usciti",
+    englishTitles: "Titoli in inglese", englishTitlesTip: "Mostra i titoli in inglese",
+    compact: "Compatto", compactTip: "Nascondi copertine",
+    search: "Cerca anime…", language: "Lingua", detailsLabel: "Dettagli dell'anime",
+    footer: "Sito non ufficiale, non affiliato a Crunchyroll. Dati da {anilist}. L'orario è quello della trasmissione in Giappone convertito nel tuo fuso orario; su Crunchyroll l'episodio di solito arriva insieme o fino a ~1 ora dopo. Clicca su un anime per aprirlo su Crunchyroll.",
+    loading: "Caricamento delle uscite…", loadingShort: "Caricamento…",
+    busy: "AniList è occupato, nuovo tentativo tra {s} s…",
+    noResponse: "AniList non ha risposto (forse un limite di richieste, riprova tra qualche minuto)",
+    httpError: "AniList ha risposto {code}", loadFailed: "Impossibile caricare", retry: "Riprova",
+    filteredEmpty: "Nessun episodio con i filtri attuali", dayEmpty: "Nessuna uscita in questo giorno",
+    count: n => `${n} ${n > 1 ? "uscite" : "uscita"}`, countOf: (o, t) => `${o} di ${t} uscite`,
+    now: "ora", in: "tra", premiere: "Prima", final: "Finale",
+    addList: "Aggiungi alla mia lista", removeList: "Rimuovi dalla mia lista",
+    details: "Mostra dettagli", close: "Chiudi dettagli",
+    loadingDetails: "Caricamento dei dettagli…", detailsFailed: "Impossibile caricare i dettagli.",
+    episode: "Episodio {n}", openCR: "Apri su Crunchyroll",
+    onAniList: "su AniList · {n} membri", noScore: "Ancora senza voto",
+    episodes: "{n} episodi", ongoing: "In corso", translating: "Traduzione della trama…",
+    seasons: ["Inverno", "Primavera", "Estate", "Autunno"],
+    formats: { TV: "Serie", TV_SHORT: "Corto", MOVIE: "Film", SPECIAL: "Speciale" },
+    genres: ["Azione", "Avventura", "Commedia", "Drammatico", "Ecchi", "Fantasy", "Horror", "Majokko", "Mecha", "Musica", "Mistero", "Psicologico", "Sentimentale", "Fantascienza", "Slice of life", "Sport", "Soprannaturale", "Thriller"],
+  },
+};
+const GENRE_KEYS = ["Action", "Adventure", "Comedy", "Drama", "Ecchi", "Fantasy", "Horror", "Mahou Shoujo", "Mecha", "Music", "Mystery", "Psychological", "Romance", "Sci-Fi", "Slice of Life", "Sports", "Supernatural", "Thriller"];
+const SEASON_KEYS = ["WINTER", "SPRING", "SUMMER", "FALL"];
+
+// idioma: o escolhido no seletor ou o primeiro do navegador que o site tenha; senão, inglês
+function detectLang() {
+  let saved = null;
+  try { saved = localStorage.getItem("cal.lang"); } catch {}
+  if (saved && I18N[saved]) return saved;
+  for (const l of navigator.languages || [navigator.language]) {
+    const code = String(l).slice(0, 2).toLowerCase();
+    if (I18N[code]) return code;
+  }
+  return "en";
+}
+let LANG = detectLang();
+// formatos de data, hora e número seguem o país do computador (ex.: en-US mostra 10/25 e 2:30 PM)
+const LOCALE = navigator.language || "en";
+const tx = (key, vars = {}) => String(I18N[LANG][key] ?? I18N.en[key] ?? key).replace(/\{(\w+)\}/g, (m, k) => k in vars ? vars[k] : m);
+const txf = key => I18N[LANG][key] ?? I18N.en[key]; // para os textos que são funções (plural)
+
+// nome do dia da semana no idioma da interface ("segunda-feira" vira "Segunda")
+function weekdayName(date) {
+  const name = new Intl.DateTimeFormat(I18N[LANG].htmlLang, { weekday: "long" }).format(date).replace(/-feira$/, "");
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+// aplica os textos fixos da página (cabeçalho, filtros, rodapé)
+function applyStaticTexts() {
+  document.documentElement.lang = I18N[LANG].htmlLang;
+  document.title = tx("docTitle");
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = tx(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-title]").forEach(el => { el.title = tx(el.dataset.i18nTitle); });
+  document.querySelectorAll("[data-i18n-label]").forEach(el => {
+    el.title = tx(el.dataset.i18nLabel);
+    el.setAttribute("aria-label", tx(el.dataset.i18nLabel));
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => { el.placeholder = tx(el.dataset.i18nPh); });
+  document.getElementById("footer").innerHTML = escapeHtml(tx("footer"))
+    .replace("{anilist}", `<a href="https://anilist.co" target="_blank" rel="noopener">AniList</a>`);
+}
 
 // ---------- estado ----------
 const store = {
@@ -365,8 +575,10 @@ function startOfWeek(d) {
 }
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
-const fmtDate = d => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-const fmtTime = d => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+const fmtDate = d => d.toLocaleDateString(LOCALE, { day: "2-digit", month: "2-digit" });
+// relógio de 12 h (EUA) fica "2:30 PM"; o de 24 h mantém o zero à esquerda ("09:30")
+const USES_12H = new Intl.DateTimeFormat(LOCALE, { hour: "numeric" }).resolvedOptions().hour12;
+const fmtTime = d => d.toLocaleTimeString(LOCALE, { hour: USES_12H ? "numeric" : "2-digit", minute: "2-digit" });
 
 // ---------- dados ----------
 async function gql(variables, attempt = 0) {
@@ -379,9 +591,9 @@ async function gql(variables, attempt = 0) {
     });
   } catch (e) {
     // o 429 do AniList vem sem cabeçalho CORS, então o navegador só mostra "Failed to fetch"
-    if (attempt >= 3) throw new Error("o AniList não respondeu (talvez limite de requisições, tente em alguns minutos)");
+    if (attempt >= 3) throw new Error(tx("noResponse"));
     // o bloqueio do AniList dura cerca de 1 minuto: espera 30s, 60s e 90s
-    setStatus(`AniList ocupado, tentando de novo em ${30 * (attempt + 1)}s…`);
+    setStatus(tx("busy", { s: 30 * (attempt + 1) }));
     await new Promise(r => setTimeout(r, 30000 * (attempt + 1)));
     return gql(variables, attempt + 1);
   }
@@ -390,7 +602,7 @@ async function gql(variables, attempt = 0) {
     await new Promise(r => setTimeout(r, wait));
     return gql(variables, attempt + 1);
   }
-  if (!res.ok) throw new Error(`AniList respondeu ${res.status}`);
+  if (!res.ok) throw new Error(tx("httpError", { code: res.status }));
   const json = await res.json();
   if (json.errors) throw new Error(json.errors[0].message);
   return json.data.Page;
@@ -489,7 +701,7 @@ async function load(force = false) {
     if (!force && Date.now() - cached.t < CACHE_TTL) { prefetchMine(); return; }
   } else {
     current = [];
-    grid.innerHTML = `<div class="status">Carregando lançamentos…</div>`;
+    grid.innerHTML = `<div class="status">${tx("loading")}</div>`;
   }
   const reloadBtn = document.getElementById("reload");
   reloadBtn.classList.add("busy");
@@ -506,7 +718,7 @@ async function load(force = false) {
   } catch (e) {
     if (token !== loadToken) return;
     // com dados guardados na tela, mantém eles; sem nada, mostra o erro
-    if (!cached) grid.innerHTML = `<div class="status err">Não foi possível carregar: ${escapeHtml(e.message)}. <button class="btn" onclick="load(true)">Tentar de novo</button></div>`;
+    if (!cached) grid.innerHTML = `<div class="status err">${tx("loadFailed")}: ${escapeHtml(e.message)}. <button class="btn" onclick="load(true)">${tx("retry")}</button></div>`;
   } finally {
     if (token === loadToken) reloadBtn.classList.remove("busy");
   }
@@ -547,35 +759,36 @@ function render() {
     let rows = "";
     let nowPlaced = !isToday;
     for (const it of d.items) {
-      if (!nowPlaced && it.at > now) { rows += `<div class="now-line">agora ${fmtTime(new Date(now))}</div>`; nowPlaced = true; }
+      if (!nowPlaced && it.at > now) { rows += nowLine(now); nowPlaced = true; }
       rows += card(it, now);
     }
-    if (!nowPlaced && d.items.length) rows += `<div class="now-line">agora ${fmtTime(new Date(now))}</div>`;
+    if (!nowPlaced && d.items.length) rows += nowLine(now);
     const countTxt = d.items.length
-      ? (out === d.items.length ? `${out} Lançamento${out > 1 ? "s" : ""}` : `${out} de ${d.items.length} Lançamentos`)
+      ? (out === d.items.length ? txf("count")(out) : txf("countOf")(out, d.items.length))
       : "";
     return `<section class="day${isToday ? " today" : ""}">
       <div class="day-head">
-        <div><span class="wd">${isToday ? "Hoje" : WD[i]}</span><span class="count">${countTxt}</span></div>
+        <div><span class="wd">${isToday ? tx("today") : weekdayName(d.date)}</span><span class="count">${countTxt}</span></div>
         <span class="dt">${fmtDate(d.date)}</span>
       </div>
-      <div class="list">${rows || `<div class="empty">${loadingMore ? "Carregando…" : d.total ? "Nenhum episódio com os filtros atuais" : "Sem lançamentos neste dia"}</div>`}</div>
+      <div class="list">${rows || `<div class="empty">${loadingMore ? tx("loadingShort") : d.total ? tx("filteredEmpty") : tx("dayEmpty")}</div>`}</div>
     </section>`;
   }).join("");
 }
 
 function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+const nowLine = now => `<div class="now-line">${tx("now")} ${fmtTime(new Date(now))}</div>`;
 
 function card(it, now) {
   const title = (opts.english && it.english) || it.romaji;
   const upcoming = it.at > now;
   const isMine = mine.has(it.id);
   const tags = [];
-  if (it.ep === 1) tags.push(`<span class="tag new">Estreia</span>`);
-  else if (it.total && it.ep === it.total) tags.push(`<span class="tag final">Final</span>`);
+  if (it.ep === 1) tags.push(`<span class="tag new">${tx("premiere")}</span>`);
+  else if (it.total && it.ep === it.total) tags.push(`<span class="tag final">${tx("final")}</span>`);
   const epTxt = `Ep ${it.ep}${it.total ? ` / ${it.total}` : ""}`;
   // só os episódios futuros mostram quando saem; os que já passaram do horário não levam rótulo
-  const when = upcoming ? `<span>em ${relTime(it.at - now)}</span>` : "";
+  const when = upcoming ? `<span>${relTime(it.at - now)}</span>` : "";
   const link = `target="_blank" rel="noopener"`;
   return `<div class="ep${upcoming ? " upcoming" : ""}${isMine ? " mine" : ""}" data-mid="${it.id}" data-ep="${it.ep}">
     <a class="ep-link" href="${escapeAttr(it.url)}" ${link} tabindex="-1" aria-hidden="true">
@@ -588,17 +801,18 @@ function card(it, now) {
       </a>
       <div class="meta"><span>${epTxt}</span>${tags.join("")}${when}</div>
     </div>
-    <button class="star${isMine ? " on" : ""}" data-id="${it.id}" title="${isMine ? "Remover da minha lista" : "Adicionar à minha lista"}" aria-label="Minha lista">${isMine ? "★" : "☆"}</button>
-    <button class="more" title="Ver detalhes" aria-label="Ver detalhes">ⓘ</button>
+    <button class="star${isMine ? " on" : ""}" data-id="${it.id}" title="${tx(isMine ? "removeList" : "addList")}" aria-label="${tx(isMine ? "removeList" : "addList")}">${isMine ? "★" : "☆"}</button>
+    <button class="more" title="${tx("details")}" aria-label="${tx("details")}">ⓘ</button>
   </div>`;
 }
 
+// "em 45 min", "in 2h30"; a partir de um dia usa o formato do idioma ("in 2 days", "dans 2 jours")
 function relTime(ms) {
   const m = Math.round(ms / 60000);
-  if (m < 60) return `${m} min`;
+  if (m < 60) return `${tx("in")} ${m} min`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h${m % 60 ? String(m % 60).padStart(2, "0") : ""}`;
-  return `${Math.round(h / 24)}d`;
+  if (h < 24) return `${tx("in")} ${h}h${m % 60 ? String(m % 60).padStart(2, "0") : ""}`;
+  return new Intl.RelativeTimeFormat(I18N[LANG].htmlLang, { numeric: "always" }).format(Math.round(h / 24), "day");
 }
 
 function escapeHtml(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
@@ -616,6 +830,20 @@ document.querySelectorAll(".chip[data-opt]").forEach(chip => {
   });
 });
 document.getElementById("q").addEventListener("input", render);
+
+// seletor de idioma: cada opção aparece no próprio idioma
+const langSelect = document.getElementById("lang");
+langSelect.innerHTML = Object.entries(I18N).map(([code, L]) => `<option value="${code}">${L.name}</option>`).join("");
+langSelect.value = LANG;
+langSelect.addEventListener("change", () => {
+  LANG = langSelect.value;
+  try { localStorage.setItem("cal.lang", LANG); } catch {}
+  hidePop();
+  applyStaticTexts();
+  updateNav();
+  if (current.length) render();
+  prefetchMine();
+});
 document.getElementById("prev").onclick = () => { weekStart = addDays(weekStart, -7); load(); };
 document.getElementById("next").onclick = () => { weekStart = addDays(weekStart, 7); load(); };
 document.getElementById("today").onclick = () => { weekStart = startOfWeek(new Date()); goToToday = true; load(); };
@@ -646,8 +874,9 @@ document.addEventListener("keydown", e => {
 });
 
 // ---------- popover de detalhes ----------
-const SEASONS = { WINTER: "Inverno", SPRING: "Primavera", SUMMER: "Verão", FALL: "Outono" };
-const FORMATS = { TV: "Série", TV_SHORT: "Curta", ONA: "ONA", OVA: "OVA", MOVIE: "Filme", SPECIAL: "Especial" };
+const seasonName = s => I18N[LANG].seasons[SEASON_KEYS.indexOf(s)] ?? s;
+const formatName = f => I18N[LANG].formats[f] ?? f; // ONA e OVA ficam como estão em todos os idiomas
+const genreName = g => I18N[LANG].genres?.[GENRE_KEYS.indexOf(g)] ?? g;
 const pop = document.getElementById("pop");
 let hoverEl = null, hoverTimer = 0, hideTimer = 0;
 
@@ -663,16 +892,15 @@ function cleanSynopsis(s) {
 }
 
 // ---------- tradução ----------
-const GENRES_PT = {
-  Action: "Ação", Adventure: "Aventura", Comedy: "Comédia", Drama: "Drama", Ecchi: "Ecchi", Fantasy: "Fantasia",
-  Horror: "Terror", "Mahou Shoujo": "Garota mágica", Mecha: "Mecha", Music: "Música", Mystery: "Mistério",
-  Psychological: "Psicológico", Romance: "Romance", "Sci-Fi": "Ficção científica", "Slice of Life": "Cotidiano",
-  Sports: "Esportes", Supernatural: "Sobrenatural", Thriller: "Suspense",
-};
-const translations = store.get("cal.tr", {}); // id -> sinopse traduzida
-const pendingTr = new Map(); // id -> Promise<string>
-const trFailed = new Set(); // ids cuja tradução falhou nesta sessão (mostra o original)
-let browserTranslator = null;
+// as sinopses vêm em inglês e são traduzidas para o idioma da interface
+const translations = store.get("cal.tr", {}); // "idioma:id" -> sinopse traduzida
+// as traduções antigas (só em português) eram guardadas só pelo id
+for (const k of Object.keys(translations)) if (!k.includes(":")) { translations["pt:" + k] = translations[k]; delete translations[k]; }
+const pendingTr = new Map(); // "idioma:id" -> Promise<string>
+const trFailed = new Set(); // "idioma:id" cuja tradução falhou nesta sessão (mostra o original)
+const trKey = id => `${LANG}:${id}`;
+const needsTranslation = () => LANG !== "en";
+const browserTranslators = {}; // idioma -> Promise<tradutor do navegador | null>
 let trBlockedUntil = store.get("cal.trBlockedUntil", 0); // cota diária do MyMemory esgotada até este horário
 
 // só o começo da sinopse aparece no popover, então não vale traduzir o resto
@@ -684,19 +912,19 @@ function synopsisExcerpt(s, max = 700) {
 }
 
 // 1º: tradutor embutido do navegador (Chrome/Edge, roda no próprio PC) · 2º: Google · 3º: MyMemory
-async function translateText(text) {
+async function translateText(text, lang) {
   if ("Translator" in self) {
     try {
-      browserTranslator ??= Translator.availability({ sourceLanguage: "en", targetLanguage: "pt" })
-        .then(a => a === "unavailable" ? null : Translator.create({ sourceLanguage: "en", targetLanguage: "pt" }))
+      browserTranslators[lang] ??= Translator.availability({ sourceLanguage: "en", targetLanguage: lang })
+        .then(a => a === "unavailable" ? null : Translator.create({ sourceLanguage: "en", targetLanguage: lang }))
         .catch(() => null);
-      const t = await browserTranslator;
-      if (t) return await t.translate(text);
-    } catch { browserTranslator = null; }
+      const translator = await browserTranslators[lang];
+      if (translator) return await translator.translate(text);
+    } catch { delete browserTranslators[lang]; }
   }
   // 2º: Google Tradutor (endpoint público gratuito, sem chave)
   try {
-    const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt&dt=t&q=${encodeURIComponent(text)}`);
+    const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${lang}&dt=t&q=${encodeURIComponent(text)}`);
     if (r.ok) {
       const j = await r.json();
       const out = (j[0] || []).map(seg => seg[0]).join("").trim();
@@ -715,7 +943,7 @@ async function translateText(text) {
   if (chunk) parts.push(chunk);
   const out = [];
   for (const p of parts) {
-    const r = await fetch(`https://api.mymemory.translated.net/get?langpair=en|pt-BR&q=${encodeURIComponent(p.trim())}`);
+    const r = await fetch(`https://api.mymemory.translated.net/get?langpair=en|${I18N[lang].htmlLang}&q=${encodeURIComponent(p.trim())}`);
     const j = await r.json();
     if (j.responseStatus !== 200 || /MYMEMORY WARNING/i.test(j.responseData?.translatedText)) {
       // cota diária esgotada: não tenta de novo até liberar (o aviso diz em quantas horas)
@@ -730,50 +958,55 @@ async function translateText(text) {
 }
 
 function translateSynopsis(id, text) {
-  if (translations[id]) return Promise.resolve(translations[id]);
-  if (!pendingTr.has(id)) {
-    const p = translateText(text).then(t => {
-      translations[id] = t;
+  const key = trKey(id);
+  if (translations[key]) return Promise.resolve(translations[key]);
+  if (!pendingTr.has(key)) {
+    const p = translateText(text, LANG).then(out => {
+      translations[key] = out;
       // guarda só as mais recentes (o objeto mantém a ordem em que foram adicionadas)
-      const ids = Object.keys(translations);
-      ids.slice(0, Math.max(0, ids.length - MAX_TRANSLATIONS)).forEach(k => delete translations[k]);
+      const keys = Object.keys(translations);
+      keys.slice(0, Math.max(0, keys.length - MAX_TRANSLATIONS)).forEach(k => delete translations[k]);
       store.set("cal.tr", translations);
-      return t;
-    }, e => { trFailed.add(id); throw e; }).finally(() => pendingTr.delete(id));
-    pendingTr.set(id, p);
+      return out;
+    }, e => { trFailed.add(key); throw e; }).finally(() => pendingTr.delete(key));
+    pendingTr.set(key, p);
   }
-  return pendingTr.get(id);
+  return pendingTr.get(key);
 }
 
-const compactNum = n => n >= 1000 ? (n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil" : String(n);
+// "26,1 mil" em português, "26.1K" em inglês…
+const compactNum = n => new Intl.NumberFormat(I18N[LANG].htmlLang, { notation: "compact", maximumFractionDigits: 1 }).format(n);
 
 function renderPop(m, ep, seriesUrl) {
   const img = safeUrl(m.bannerImage) || safeUrl(m.coverImage?.extraLarge);
   const link = `target="_blank" rel="noopener"`;
   const title = (opts.english && m.title.english) || m.title.romaji;
   const facts = [
-    [FORMATS[m.format] || m.format, m.season && `${SEASONS[m.season]} ${m.seasonYear}`].filter(Boolean).join(" · "),
-    m.episodes ? `${m.episodes} episódios` : "Episódios em andamento",
+    [formatName(m.format), m.season && `${seasonName(m.season)} ${m.seasonYear}`].filter(Boolean).join(" · "),
+    m.episodes ? tx("episodes", { n: m.episodes }) : tx("ongoing"),
     m.studios?.nodes?.map(s => s.name).join(", "),
   ].filter(Boolean);
+  const score = (m.averageScore / 20).toLocaleString(I18N[LANG].htmlLang, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const rating = m.averageScore
-    ? `<div class="rating"><b>${(m.averageScore / 20).toFixed(1).replace(".", ",")}</b><span class="s">★</span><span class="n">no AniList · ${compactNum(m.popularity || 0)} membros</span></div>`
-    : `<div class="rating"><span class="n">Ainda sem nota</span></div>`;
+    ? `<div class="rating"><b>${score}</b><span class="s">★</span><span class="n">${tx("onAniList", { n: compactNum(m.popularity || 0) })}</span></div>`
+    : `<div class="rating"><span class="n">${tx("noScore")}</span></div>`;
   const original = synopsisExcerpt(cleanSynopsis(m.description));
-  const syn = translations[m.id] || (trFailed.has(m.id) ? original : original && "Traduzindo sinopse…");
-  return `${CLOSE_BTN}
-    <a class="shot" href="${escapeAttr(seriesUrl)}" ${link} title="Abrir na Crunchyroll" tabindex="-1">${img ? `<img src="${escapeAttr(img)}" alt="" decoding="async">` : ""}<span class="lbl">Episódio ${ep}</span></a>
+  const key = trKey(m.id);
+  const done = !needsTranslation() || translations[key] || trFailed.has(key);
+  const syn = !needsTranslation() ? original : translations[key] || (trFailed.has(key) ? original : original && tx("translating"));
+  return `${closeBtn()}
+    <a class="shot" href="${escapeAttr(seriesUrl)}" ${link} title="${tx("openCR")}" tabindex="-1">${img ? `<img src="${escapeAttr(img)}" alt="" decoding="async">` : ""}<span class="lbl">${tx("episode", { n: ep })}</span></a>
     <div class="body">
-      <h3><a href="${escapeAttr(seriesUrl)}" ${link} title="Abrir na Crunchyroll">${escapeHtml(title)}</a></h3>
+      <h3><a href="${escapeAttr(seriesUrl)}" ${link} title="${tx("openCR")}">${escapeHtml(title)}</a></h3>
       ${rating}
       <div class="facts">${facts.map(escapeHtml).join("<br>")}</div>
-      ${m.genres?.length ? `<div class="genres">${m.genres.slice(0, 4).map(g => `<span class="tag">${escapeHtml(GENRES_PT[g] || g)}</span>`).join("")}</div>` : ""}
-      ${syn ? `<p class="syn${syn === original || translations[m.id] ? "" : " pending"}">${escapeHtml(syn)}</p>` : ""}
+      ${m.genres?.length ? `<div class="genres">${m.genres.slice(0, 4).map(g => `<span class="tag">${escapeHtml(genreName(g))}</span>`).join("")}</div>` : ""}
+      ${syn ? `<p class="syn${done ? "" : " pending"}">${escapeHtml(syn)}</p>` : ""}
     </div>`;
 }
 
 const isTouch = matchMedia("(hover: none)");
-const CLOSE_BTN = `<button class="close" aria-label="Fechar detalhes">✕</button>`;
+const closeBtn = () => `<button class="close" aria-label="${tx("close")}">✕</button>`;
 
 function placePop(el) {
   if (isTouch.matches) return; // no toque o CSS prende o popover embaixo da tela
@@ -791,7 +1024,7 @@ function placePop(el) {
 async function showPop(el) {
   const id = Number(el.dataset.mid), ep = Number(el.dataset.ep);
   const seriesUrl = el.querySelector(".series").href;
-  pop.innerHTML = `${CLOSE_BTN}<div class="body"><div class="loading">Carregando detalhes…</div></div>`;
+  pop.innerHTML = `${closeBtn()}<div class="body"><div class="loading">${tx("loadingDetails")}</div></div>`;
   placePop(el);
   pop.classList.add("show");
   try {
@@ -801,15 +1034,16 @@ async function showPop(el) {
     placePop(el);
     // troca o "Traduzindo…" pela sinopse traduzida (ou pelo original, se a tradução falhar)
     const excerpt = synopsisExcerpt(cleanSynopsis(m.description));
-    if (excerpt && !translations[m.id] && !trFailed.has(m.id)) {
-      const fill = t => {
+    const key = trKey(m.id);
+    if (excerpt && needsTranslation() && !translations[key] && !trFailed.has(key)) {
+      const fill = text => {
         const synEl = hoverEl === el && pop.querySelector(".syn");
-        if (synEl) { synEl.textContent = t; synEl.classList.remove("pending"); placePop(el); }
+        if (synEl) { synEl.textContent = text; synEl.classList.remove("pending"); placePop(el); }
       };
       translateSynopsis(m.id, excerpt).then(fill, () => fill(excerpt));
     }
   } catch {
-    if (hoverEl === el) pop.innerHTML = `${CLOSE_BTN}<div class="body"><div class="loading">Não foi possível carregar os detalhes.</div></div>`;
+    if (hoverEl === el) pop.innerHTML = `${closeBtn()}<div class="body"><div class="loading">${tx("detailsFailed")}</div></div>`;
   }
 }
 
@@ -825,15 +1059,17 @@ const scheduleHide = () => { clearTimeout(hideTimer); hideTimer = setTimeout(hid
 
 // deixa a tradução pronta antes de o popover abrir
 function prefetch(id) {
+  if (!needsTranslation()) return Promise.resolve();
   return getDetails(id).then(m => {
     const excerpt = synopsisExcerpt(cleanSynopsis(m.description));
-    if (excerpt && !translations[id] && !trFailed.has(id)) return translateSynopsis(id, excerpt);
+    if (excerpt && !translations[trKey(id)] && !trFailed.has(trKey(id))) return translateSynopsis(id, excerpt);
   }).catch(() => {});
 }
 
 // deixa pronta, em segundo plano, a tradução dos animes da "Minha lista" que estão na semana
 async function prefetchMine() {
-  const ids = [...new Set(current.filter(it => mine.has(it.id) && !translations[it.id]).map(it => it.id))];
+  if (!needsTranslation()) return;
+  const ids = [...new Set(current.filter(it => mine.has(it.id) && !translations[trKey(it.id)]).map(it => it.id))];
   for (const id of ids) {
     await prefetch(id);
     await new Promise(r => setTimeout(r, 1000)); // não dispara tudo de uma vez no tradutor
@@ -895,6 +1131,7 @@ setInterval(tick, 60000);
 // voltou para a aba depois de um tempo: confere na hora
 document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
 
+applyStaticTexts();
 load();
 </script>
 </body>

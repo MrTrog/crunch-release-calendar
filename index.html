@@ -195,8 +195,15 @@
   }
   .now-line::before, .now-line::after { content: ""; height: 2px; background: var(--accent); flex: 1; border-radius: 2px; }
 
-  .compact .ep { grid-template-columns: 1fr; }
-  .compact .ep img, .compact .ep .ph { display: none; }
+  /* compacto: sem capa, título em uma linha e menos espaço (o nome inteiro aparece nos detalhes) */
+  .compact .ep { grid-template-columns: 1fr; padding: 5px 6px; }
+  .compact .ep-link { display: none; }
+  .compact .ep .title { -webkit-line-clamp: 1; margin: 1px 0 0; grid-column: 1 / -1; }
+  /* horário e "Ep 3 / 12" na mesma linha, título embaixo */
+  .compact .ep .info { padding-right: 18px; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: baseline; }
+  .compact .ep .series { display: contents; }
+  .compact .ep .time { grid-row: 1; }
+  .compact .ep .meta { grid-row: 1; }
 
   /* ---------- Popover de detalhes ---------- */
   .pop {

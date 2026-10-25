@@ -54,7 +54,8 @@
     font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  button, input { font: inherit; color: inherit; }
+  button, input, select { font: inherit; color: inherit; }
+  option { background: var(--surface); color: var(--text); }
   a:focus-visible, button:focus-visible, input:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px;
   }
@@ -104,7 +105,7 @@
     border-radius: 999px; padding: 5px 12px; width: 180px; outline: none;
   }
   .search:focus { border-color: var(--accent); }
-  .lang { width: auto; cursor: pointer; color: var(--muted); }
+  .lang { height: 34px; cursor: pointer; margin-left: 4px; }
 
   /* ---------- Grade ---------- */
   main { max-width: 1600px; margin: 0 auto; padding: 16px; }
@@ -283,6 +284,7 @@
       <button class="btn icon" id="reload" data-i18n-label="refresh">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>
       </button>
+      <select class="btn lang" id="lang" data-i18n-label="language"></select>
     </div>
   </div>
   <div class="bar" style="padding-top:0">
@@ -293,7 +295,6 @@
       <button class="chip" data-opt="english" data-i18n="englishTitles" data-i18n-title="englishTitlesTip"></button>
       <button class="chip" data-opt="compact" data-i18n="compact" data-i18n-title="compactTip"></button>
       <input class="search" id="q" type="search" data-i18n-ph="search" autocomplete="off">
-      <select class="search lang" id="lang" data-i18n-label="language"></select>
     </div>
   </div>
 </header>

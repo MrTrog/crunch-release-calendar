@@ -523,8 +523,14 @@ function detectLang() {
   return "en";
 }
 let LANG = detectLang();
-// formatos de data, hora e número seguem o país do computador (ex.: en-US mostra 10/25 e 2:30 PM)
-const LOCALE = navigator.language || "en";
+// formato de data e hora: o do navegador, se ele for do idioma escolhido (ex.: en-GB mostra 25/10);
+// senão, o formato mais comum do idioma (inglês escolhido num PC brasileiro mostra 10/25 e 2:30 PM)
+const DEFAULT_LOCALE = { pt: "pt-BR", en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT" };
+function pickLocale(lang) {
+  const own = (navigator.languages || [navigator.language]).find(l => String(l).toLowerCase().startsWith(lang));
+  return own && own.includes("-") ? own : DEFAULT_LOCALE[lang];
+}
+let LOCALE = pickLocale(LANG);
 const tx = (key, vars = {}) => String(I18N[LANG][key] ?? I18N.en[key] ?? key).replace(/\{(\w+)\}/g, (m, k) => k in vars ? vars[k] : m);
 const txf = key => I18N[LANG][key] ?? I18N.en[key]; // para os textos que são funções (plural)
 
@@ -577,8 +583,8 @@ function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); retu
 function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
 const fmtDate = d => d.toLocaleDateString(LOCALE, { day: "2-digit", month: "2-digit" });
 // relógio de 12 h (EUA) fica "2:30 PM"; o de 24 h mantém o zero à esquerda ("09:30")
-const USES_12H = new Intl.DateTimeFormat(LOCALE, { hour: "numeric" }).resolvedOptions().hour12;
-const fmtTime = d => d.toLocaleTimeString(LOCALE, { hour: USES_12H ? "numeric" : "2-digit", minute: "2-digit" });
+const uses12h = () => new Intl.DateTimeFormat(LOCALE, { hour: "numeric" }).resolvedOptions().hour12;
+const fmtTime = d => d.toLocaleTimeString(LOCALE, { hour: uses12h() ? "numeric" : "2-digit", minute: "2-digit" });
 
 // ---------- dados ----------
 async function gql(variables, attempt = 0) {
@@ -837,6 +843,7 @@ langSelect.innerHTML = Object.entries(I18N).map(([code, L]) => `<option value="$
 langSelect.value = LANG;
 langSelect.addEventListener("change", () => {
   LANG = langSelect.value;
+  LOCALE = pickLocale(LANG);
   try { localStorage.setItem("cal.lang", LANG); } catch {}
   hidePop();
   applyStaticTexts();
